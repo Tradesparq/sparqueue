@@ -1,0 +1,8 @@
+{
+    "queues": [
+        {
+            "system": "sparqueue",
+            "queue": "main"
+        }
+    ]
+}

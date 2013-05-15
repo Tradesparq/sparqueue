@@ -1,0 +1,20 @@
+from distutils.core import setup
+
+setup(
+    name='sparqueue',
+    version='0.1',
+    packages=['sparqueue',],
+    scripts=[
+		'bin/sparqueue-api', 
+		'bin/sparqueue-cli', 
+		'bin/sparqueue-worker'
+	],
+    data_files=[('config', [
+            'config/worker.json',
+            'config/api.json',
+            'config/sparqueue-cli.json'
+        ])
+    ],
+    license='MIT',
+    long_description=open('README.md').read(),
+)

@@ -1,0 +1,68 @@
+{
+    "source_bucket": "redis://",
+    "output_bucket": "static01.tradesparq.com",
+    "s3host": "s3-us-west-2.amazonaws.com",
+    "exclude_regexp": ".[0-9]+_[0-9]+.",
+    "types":
+    [
+        {
+            "directory": "user",
+            "transforms": [
+                {
+                    "regexp": ".*(user/[0-9]{4}/[0-9]{4}/[0-9]{4}/ad/.*\\.)(JPG|PNG|GIF|jpg|png|gif)$",
+                    "resize": [
+                        {"w":80, "h":80},
+                        {"w":120, "h":120}
+                    ]
+                },
+                {
+                    "regexp": ".*(user/[0-9]{4}/[0-9]{4}/[0-9]{4}/product/.*\\.)(JPG|PNG|GIF|jpg|png|gif)$",
+                    "resize": [
+                        {"w":40, "h":40},
+                        {"w":80, "h":80},
+                        {"w":100, "h":100},
+                        {"w":120, "h":120},
+                        {"w":160, "h":160},
+                        {"w":320, "h":320},
+                        {"w":640, "h":640}
+                    ]
+                },
+                {
+                    "regexp": ".*(user/[0-9]{4}/[0-9]{4}/[0-9]{4}/profile/.*\\.)(JPG|PNG|GIF|jpg|png|gif)$",
+                    "resize": [
+                        {"w":40, "h":40},
+                        {"w":80, "h":80},
+                        {"w":160, "h":160}
+                    ]
+                }
+            ],
+            "enabled": 1
+        },
+        {
+            "directory": "webthumb",
+            "transforms": [
+                {
+                    "regexp": ".*(webthumb/[0-9]{4}/[0-9]{4}/[0-9]{4}/.*\\.)(JPG|PNG|GIF|jpg|png|gif)$",
+                    "resize": [
+                    ]
+                }
+            ],
+            "enabled": 1
+        },
+        {
+            "directory": "company",
+            "transforms": [
+                {
+                    "regexp": ".*(company/[0-9]{4}/[0-9]{4}/[0-9]{4}/logo/.*\\.)(JPG|PNG|GIF|jpg|png|gif)$",
+                    "resize": [
+                        {"w":40, "h":40},
+                        {"w":80, "h":80},
+                        {"w":160, "h":160}
+                    ]
+                }
+            ],
+            "enabled": 1
+        }
+    ]
+}
+

@@ -1,0 +1,15 @@
+#!/usr/bin/env python
+
+import argparse
+
+import sparqueue.cli
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers()
+
+    sparqueue.cli.setup_parser(parser, subparsers, 'config/sparqueue-cli.json', 'sparqueue', 'main')
+    args = parser.parse_args()
+    sparqueue.cli.use_args(args)
+
+    print args.func(args)
