@@ -101,11 +101,11 @@ underlying datastore by simply constructing a valid JSON request.
 
 ### system diagram
 
-[docs/sparqueue system 2013-05-10.png]
+![system diagram](docs/sparqueue system 2013-05-10.png)
 
 ### job state diagram
 
-[docs/sparqueue job state diagram 2013-05-10.png]
+![job state diagram](docs/sparqueue job state diagram 2013-05-10.png)
 
 ### ids
 
