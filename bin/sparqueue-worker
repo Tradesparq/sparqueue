@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import redis
+import sh
 import signal
 import sys
 import time
@@ -41,10 +42,11 @@ def loop(config, jobloader):
     queue = sparqueue.queue.RedisQueue(
         redisclient,
         # TODO: support multiple queues
-        config['queue'][0],
-        sparqueue.redis.prefix,
+        config['queues'][0]['system'],
+        config['queues'][0]['queue'],
         config)
 
+    requeued = queue.requeue()
     while RUN:
         logger.info('brpop queue %s [%s]' % (queue.queue_name, queue.client_id))
 
@@ -66,7 +68,6 @@ def loop(config, jobloader):
         if 'install' in job:
             if 'pip' in job['install']:
                 logger.info('installing %s' % job['install']['pip'])
-                import sh
                 logger.info(sh.pip('install', '--upgrade', job['install']['pip']))
 
         jobInstance = jobloader.getInstance(job['class'], config)

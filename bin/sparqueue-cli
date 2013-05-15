@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import os
+import sys
 import argparse
 
 import sparqueue.cli
@@ -7,8 +9,14 @@ import sparqueue.cli
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
+    config_filename = os.path.join(sys.prefix, 'config', 'sparqueue-cli.json')
+    sparqueue.cli.setup_parser(
+        parser,
+        subparsers,
+        config_filename,
+        'sparqueue',
+        'main')
 
-    sparqueue.cli.setup_parser(parser, subparsers, 'config/sparqueue-cli.json', 'sparqueue', 'main')
     args = parser.parse_args()
     sparqueue.cli.use_args(args)
 

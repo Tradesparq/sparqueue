@@ -15,7 +15,7 @@ logger = sparqueue.logging.getLogger(__file__)
 
 @post('/<system>/queues/<queue>/jobs')
 def queues_submit(system, queue):
-    assert SYSTEM == system and QUEUE_NAME == queue
+    assert SYSTEM_NAME == system and QUEUE_NAME == queue
     response.headers['Content-Type'] = 'text/plain'
     try:
         data = request.forms.get('job')
@@ -30,39 +30,39 @@ def queues_submit(system, queue):
 
 @get('/<system>/queues/<queue>/jobs')
 def queues_list(system, queue):
-    assert SYSTEM == system and QUEUE_NAME == queue
+    assert SYSTEM_NAME == system and QUEUE_NAME == queue
     response.headers['Content-Type'] = 'text/json'
     l = QUEUE.list()
     return json.dumps(l)
 
 @get('/<system>/queues/<queue>/workers')
 def workers_list(system, queue):
-    assert SYSTEM == system and QUEUE_NAME == queue
+    assert SYSTEM_NAME == system and QUEUE_NAME == queue
     response.headers['Content-Type'] = 'text/json'
     l = QUEUE.workers()
     return json.dumps(l)
 
 @delete('/<system>/queues/<queue>/workers/<workerid>')
 def workers_delete(system, queue, workerid):
-    assert SYSTEM == system and QUEUE_NAME == queue
+    assert SYSTEM_NAME == system and QUEUE_NAME == queue
     response.headers['Content-Type'] = 'text/json'
     return QUEUE.worker_delete(workerid)
 
 @get('/<system>/queues/<queue>/jobs/<jobid>')
 def queues_job(system, queue, jobid):
-    assert SYSTEM == system and QUEUE_NAME == queue
+    assert SYSTEM_NAME == system and QUEUE_NAME == queue
     response.headers['Content-Type'] = 'text/json'
     return QUEUE.job(jobid)
 
 @delete('/<system>/queues/<queue>/jobs/<jobid>')
 def queues_job_cancel(system, queue, jobid):
-    assert SYSTEM == system and QUEUE_NAME == queue
+    assert SYSTEM_NAME == system and QUEUE_NAME == queue
     response.headers['Content-Type'] = 'text/json'
     return QUEUE.cancel(jobid)
 
 @get('/<system>/queues/<queue>/jobs/<jobid>/status')
 def queues_state(system, queue, jobid):
-    assert SYSTEM == system and QUEUE_NAME == queue
+    assert SYSTEM_NAME == system and QUEUE_NAME == queue
     response.headers['Content-Type'] = 'text/plain'
     return QUEUE.status(jobid)
 
@@ -80,15 +80,16 @@ def execute(config_filename):
 def loop(config):
     redisclient = sparqueue.redis.client(config)
 
-    global QUEUE, SYSTEM, QUEUE_NAME
-    QUEUE_NAME = config['queue'][0]
+    global QUEUE, SYSTEM_NAME, QUEUE_NAME
+    QUEUE_NAME = config['queues'][0]['queue']
+    SYSTEM_NAME =config['queues'][0]['system']
     QUEUE = sparqueue.queue.RedisQueue(
         redisclient,
+        SYSTEM_NAME,
         QUEUE_NAME,
-        sparqueue.redis.prefix,
         config)
-    SYSTEM = config['system']
-    logger.info('System: %s Queue %s' % (SYSTEM, QUEUE))
+
+    logger.info('System: %s Queue %s' % (SYSTEM_NAME, QUEUE))
     run(host='localhost', port=8080, debug=True)
 
 if __name__ == '__main__':
