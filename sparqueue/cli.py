@@ -5,7 +5,7 @@ import sparqueue.client
 import sparqueue.config
 
 def submit(args):
-    if args is object:
+    if type(args) is dict:
         obj = args
     else:
         content = file(args.filename).read()
@@ -13,19 +13,19 @@ def submit(args):
     if 'metadata' not in obj:
         obj['metadata'] = {}
     obj['metadata']['user'] =  os.environ['USER']
-    return sparqueue_client.submit(obj)
+    return SPARQUEUE_CLIENT.submit(obj)
 
 def list_jobs(args):
-    return format_json(sparqueue_client.list())
+    return format_json(SPARQUEUE_CLIENT.list())
 
 def workers(args):
-    return format_json(sparqueue_client.workers())
+    return format_json(SPARQUEUE_CLIENT.workers())
 
 def job(args):
-    return format_json(sparqueue_client.job(args.jobid))
+    return format_json(SPARQUEUE_CLIENT.job(args.jobid))
 
 def status(args):
-    s = json.loads(sparqueue_client.status(args.jobid))
+    s = json.loads(SPARQUEUE_CLIENT.status(args.jobid))
     if args.text:
         if s['step']:
             return '%s;%s' % (s['state'], s['step'])
@@ -35,19 +35,19 @@ def status(args):
         return format_json(s)
 
 def traceback(args):
-    obj = json.loads(sparqueue_client.job(args.jobid))
+    obj = json.loads(SPARQUEUE_CLIENT.job(args.jobid))
     if 'traceback' in obj:
         return obj['traceback']
     else:
         return 'No error'
 
 def worker_delete(args):
-    return format_json(sparqueue_client.worker_delete(args.workerid))
+    return format_json(SPARQUEUE_CLIENT.worker_delete(args.workerid))
 
 def job_cancel(args):
     jobs = []
     for jobid in args.jobid:
-        jobs.append(format_json(sparqueue_client.cancel(jobid)))
+        jobs.append(format_json(SPARQUEUE_CLIENT.cancel(jobid)))
     return jobs
 
 def format_json(s):
@@ -138,7 +138,10 @@ def setup_parser(parser, subparsers, config, system, queue):
     traceback_parser.set_defaults(func=traceback)
 
 def use_args(args):
-    global config, sparqueue_client
+    global config, SPARQUEUE_CLIENT
     config = sparqueue.config.get_config(args.config)
-    sparqueue_client = sparqueue.client.Client(
+    SPARQUEUE_CLIENT = sparqueue.client.Client(
         args.protocol, args.hostname, args.port, args.system, args.queue)
+
+def sparqueue_client(args):
+    return SPARQUEUE_CLIENT
