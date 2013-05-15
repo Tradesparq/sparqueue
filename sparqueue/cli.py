@@ -25,7 +25,14 @@ def job(args):
     return format_json(sparqueue_client.job(args.jobid))
 
 def status(args):
-    return '%s' % sparqueue_client.status(args.jobid)
+    s = json.loads(sparqueue_client.status(args.jobid))
+    if args.text:
+        if s['step']:
+            return '%s;%s' % (s['state'], s['step'])
+        else:
+            return s['state']
+    else:
+        return format_json(s)
 
 def traceback(args):
     obj = json.loads(sparqueue_client.job(args.jobid))
@@ -118,6 +125,10 @@ def setup_parser(parser, subparsers, config, system, queue):
     status_parser.add_argument(
         'jobid',
         help='jobid to retrieve status from')
+    status_parser.add_argument(
+        '-text',
+        action='store_true', default=False,
+        help='text only display (semi-colon separated)')
     status_parser.set_defaults(func=status)
 
     traceback_parser = subparsers.add_parser('traceback', help='retrieve job traceback')

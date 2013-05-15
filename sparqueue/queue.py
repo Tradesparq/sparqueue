@@ -28,26 +28,26 @@ class RedisQueue():
 
         print 'Redis version %s' % self.r.info()['redis_version']
 
-        self.current_key = self.prefix('workers', 'current')
-        self.activity_key = self.prefix('queues', queue_name, 'workers')
-        self.jobs_key = self.prefix('queues', 'jobs')
-
-        self.pending_key = self.prefix('queues', queue_name, 'pending')
-        self.cancelled_key = self.prefix('queues', queue_name, 'cancelled')
-        self.ongoing_key = self.prefix('queues', queue_name, 'all')
-        self.success_key = self.prefix('queues', queue_name, 'success')
-        self.failed_key = self.prefix('queues', queue_name, 'failed')
+        self.activity_hash = self.prefix('queues', queue_name, 'workers')
+        self.cancelled_hash = self.prefix('queues', queue_name, 'cancelled')
+        self.current_hash = self.prefix('workers', 'current')
+        self.failed_set = self.prefix('queues', queue_name, 'failed')
+        self.jobs_hash = self.prefix('queues', 'jobs')
+        self.ongoing_hash = self.prefix('queues', queue_name, 'all')
+        self.pending_list = self.prefix('queues', queue_name, 'pending')
+        self.success_set = self.prefix('queues', queue_name, 'success')
+        self.step_hash = self.prefix('queues', queue_name, 'step')
 
         self.hostname = socket.gethostname()
         self.pid = os.getpid()
         self.client_id = '%s.%s.%s' % (self.hostname, self.pid, time.time())
 
     def exit(self):
-        self.r.hdel(self.activity_key, self.client_id)
+        self.r.hdel(self.activity_hash, self.client_id)
 
     def workers(self):
         retlist = []
-        workers = self.r.hgetall(self.activity_key)
+        workers = self.r.hgetall(self.activity_hash)
         if not workers:
             return retlist
 
@@ -59,8 +59,8 @@ class RedisQueue():
 
     def worker_delete(self, workerid):
         m = self.r.pipeline()
-        m.hget(self.activity_key, workerid)
-        m.hdel(self.activity_key, workerid)
+        m.hget(self.activity_hash, workerid)
+        m.hdel(self.activity_hash, workerid)
         results = m.execute()
         return self._worker_info(float(results[0]), workerid)
 
@@ -78,30 +78,30 @@ class RedisQueue():
         config['metadata']['queue'] = self.queue_name
 
         m = self.r.pipeline()
-        m.hset(self.jobs_key, jobid, json.dumps(config))
-        m.lpush(self.pending_key, jobid)
-        m.hset(self.ongoing_key, jobid, time.time())
+        m.hset(self.jobs_hash, jobid, json.dumps(config))
+        m.lpush(self.pending_list, jobid)
+        m.hset(self.ongoing_hash, jobid, time.time())
         m.execute()
 
         return jobid
 
     def next(self, timeout=5):
         # we update the activity timestamp for the current worker
-        self.r.hset(self.activity_key, self.client_id, time.time())
+        self.r.hset(self.activity_hash, self.client_id, time.time())
 
         # block pop with catchable exception
-        retvalue = self.r.brpop(self.pending_key, timeout)
+        retvalue = self.r.brpop(self.pending_list, timeout)
         if not retvalue:
-            raise QueueException('brpop returned null for %s due to timeout - please retry' % self.pending_key)
+            raise QueueException('brpop returned null for %s due to timeout - please retry' % self.pending_list)
         (key, jobid) = retvalue
-        if self.r.sismember(self.cancelled_key, jobid):
+        if self.r.sismember(self.cancelled_hash, jobid):
             raise QueueException('jobid is cancelled %s - please retry' % jobid)
 
         # use the jobid and set all related information
         m = self.r.pipeline()
-        m.hget(self.jobs_key, jobid)
-        m.hset(self.ongoing_key, jobid, time.time())
-        m.hset(self.current_key, self.client_id, jobid)
+        m.hget(self.jobs_hash, jobid)
+        m.hset(self.ongoing_hash, jobid, time.time())
+        m.hset(self.current_hash, self.client_id, jobid)
         retvalue = m.execute()
 
         config = retvalue[0]
@@ -114,66 +114,74 @@ class RedisQueue():
         current['output'] = output
         current['stats'] = stats
 
-        self._finalize(jobid, self.success_key, current)
+        self._finalize(jobid, self.success_set, current)
 
     def failed(self, e):
         (jobid, current) = self._get_current_job()
         current['last_error'] = str(e)
         current['traceback'] = traceback.format_exc(e)
 
-        self._finalize(jobid, self.failed_key, current)
+        self._finalize(jobid, self.failed_set, current)
 
     def status(self, jobid):
         m = self.r.pipeline()
-        m.hexists(self.ongoing_key, jobid)
-        m.hexists(self.pending_key, jobid)
-        m.sismember(self.failed_key, jobid)
-        m.sismember(self.success_key, jobid)
-        m.sismember(self.cancelled_key, jobid)
+        IS_ONGOING = 0
+        m.hexists(self.ongoing_hash, jobid) #0
+        IS_EXIST = 1
+        m.hexists(self.jobs_hash, jobid) #1
+        IS_FAILED = 2
+        m.sismember(self.failed_set, jobid) #2
+        IS_SUCCESS = 3
+        m.sismember(self.success_set, jobid) #3
+        IS_CANCELLED = 4
+        m.sismember(self.cancelled_hash, jobid) #4
+        STEP = 5
+        m.hget(self.step_hash, jobid)
         states = m.execute()
 
-        if states[4]:
-            return 'CANCELLED'
-        elif states[0]:
-            if states[1]:
-                return 'PENDING'
-            else:
-                return 'ACTIVE'
-        else:
-            if states[2]:
-                return 'FAILED'
-            elif states[3]:
-                return 'SUCCESS'
-            else:
-                return 'UNKNOWN'
+        state = 'UNKNOWN'
+        if states[IS_EXIST]:
+            if states[IS_FAILED]:
+                state = 'FAILED'
+            if states[IS_SUCCESS]:
+                state = 'SUCCESS'
+            if states[IS_CANCELLED]:
+                state = 'CANCELLED'
+            if states[IS_ONGOING]:
+                state = 'ACTIVE'
+
+        return {
+            'state': state,
+            'step': states[STEP]
+        }
 
     def job(self, jobid):
-        return json.loads(self.r.hget(self.jobs_key, jobid))
+        return json.loads(self.r.hget(self.jobs_hash, jobid))
 
     def requeue(self, timeout=60):
-        # since ongoing_key may change while we're checking
+        # since ongoing_hash may change while we're checking
         # we want to use optimistic locking and retry
         # if that key change
         requeued = []
         with self.r.pipeline() as pipe:
             while 1:
                 try:
-                    pipe.watch(self.ongoing_key)
-                    pipe.watch(self.pending_key)
-                    jobids = self.r.hkeys(self.ongoing_key)
-                    pending = self.r.lrange(self.pending_key, 0, -1)
+                    pipe.watch(self.ongoing_hash)
+                    pipe.watch(self.pending_list)
+                    jobids = self.r.hkeys(self.ongoing_hash)
+                    pending = self.r.lrange(self.pending_list, 0, -1)
                     pipe.multi()
                     for jobid in jobids:
                         # if the jobid has timed out
-                        if time.time() - float(self.r.hget(self.ongoing_key, jobid)) > timeout:
+                        if time.time() - float(self.r.hget(self.ongoing_hash, jobid)) > timeout:
                             # and the jobid is not in the list of pending keys
                             try:
                                 pending.index(jobid)
                             except ValueError:
                                 # push back to pending
                                 requeued.append(jobid)
-                                pipe.lpush(self.pending_key, jobid)
-                                pipe.hset(self.ongoing_key, jobid, time.time())
+                                pipe.lpush(self.pending_list, jobid)
+                                pipe.hset(self.ongoing_hash, jobid, time.time())
                     pipe.execute()
                     break
                 except redis.WatchError:
@@ -188,10 +196,10 @@ class RedisQueue():
         every = set()
 
         m = self.r.pipeline()
-        m.smembers(self.success_key),
-        m.smembers(self.failed_key),
-        m.smembers(self.pending_key),
-        m.hkeys(self.jobs_key)
+        m.smembers(self.success_set),
+        m.smembers(self.failed_set),
+        m.smembers(self.pending_list),
+        m.hkeys(self.jobs_hash)
         results = m.execute()
 
         success.update(results[0])
@@ -210,7 +218,7 @@ class RedisQueue():
 
         m = self.r.pipeline()
         for jobid in jobids:
-            m.hget(self.jobs_key, jobid)
+            m.hget(self.jobs_hash, jobid)
         results = m.execute()
 
         jobs = []
@@ -227,10 +235,11 @@ class RedisQueue():
                         status = 'PENDING'
                     else:
                         status = 'ACTIVE'
-                jobid = job['metadata']['status'] = status
+                job['metadata']['status'] = status
 
             unwanted = set(job) - set(selector)
-            for unwanted_key in unwanted: del job[unwanted_key]
+            for unwanted_key in unwanted:
+                del job[unwanted_key]
             jobs.append(job)
 
         return jobs
@@ -240,31 +249,35 @@ class RedisQueue():
         # explicitly checks for cancellation?
         m = self.r.pipeline()
         # we mark this as cancelled in case it's requeued
-        m.sadd(self.cancelled_key, jobid)
+        m.sadd(self.cancelled_hash, jobid)
         # we fetch and delete from jobs key
-        m.hget(self.jobs_key, jobid)
-        m.hdel(self.jobs_key, jobid)
+        m.hget(self.jobs_hash, jobid)
+        m.hdel(self.jobs_hash, jobid)
         # we delete from whatever start or end states we can
-        m.hdel(self.pending_key, jobid)
-        m.hdel(self.success_key, jobid)
-        m.hdel(self.failed_key, jobid)
-        m.hdel(self.ongoing_key, jobid)
+        m.hdel(self.pending_list, jobid)
+        m.srem(self.success_set, jobid)
+        m.hdel(self.failed_set, jobid)
+        m.hdel(self.ongoing_hash, jobid)
         results = m.execute()
         return json.loads(results[1])
+
+    def step(self, jobid, stepname):
+        return self.r.hset(self.step_hash, jobid, stepname)
 
     def _finalize(self, jobid, key, current):
         m = self.r.pipeline()
         m.sadd(key, jobid)
-        m.hdel(self.current_key, self.client_id)
-        m.hdel(self.ongoing_key, jobid)
-        m.hset(self.jobs_key, jobid, json.dumps(current))
+        m.hdel(self.current_hash, self.client_id)
+        m.hdel(self.ongoing_hash, jobid)
+        m.hset(self.jobs_hash, jobid, json.dumps(current))
+        m.hdel(self.step_hash, jobid)
         m.execute()
 
     def _get_current_job(self):
-        jobid = self.r.hget(self.current_key, self.client_id)
+        jobid = self.r.hget(self.current_hash, self.client_id)
         if not jobid:
             raise QueueException('Finish called with no current task')
-        current_json = self.r.hget(self.jobs_key, jobid)
+        current_json = self.r.hget(self.jobs_hash, jobid)
         current = json.loads(current_json)
         return (jobid, current)
 
@@ -273,7 +286,7 @@ class RedisQueue():
         started = float('%s.%s' % (seconds, millis))
         now = time.time()
         last_update = now - last
-        jobid = self.r.hget(self.current_key, self.client_id)
+        jobid = self.r.hget(self.current_hash, self.client_id)
         if last_update > timeout:
             status = 'STALE'
         else:

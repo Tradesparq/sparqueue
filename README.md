@@ -154,6 +154,20 @@ Redis data structures (hierarchy is joined by | separator):
  * workers:
   * current: hash of workerid => jobid
 
+### key types:
+
+$ redis-cli keys "sparqueue|*" | xargs -n1 --verbose redis-cli type
+redis-cli type sparqueue|queues|main|success
+set
+redis-cli type sparqueue|queues|jobs
+hash
+redis-cli type sparqueue|workers|current
+hash
+redis-cli type sparqueue|queues|main|workers
+hash
+redis-cli type sparqueue|queues|main|cancelled
+set
+
 ## Roadmap
 
 ### Management UI

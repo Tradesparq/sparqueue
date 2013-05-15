@@ -38,6 +38,7 @@ class Reporter():
             self.info('Expecting %s sub-steps' % count)
         self.total = count
         self.count = count
+        self.queue.step(self.jobid, step)
 
     def increment(self):
         progress = 100-int((float(self.count)/float(self.total))*100)

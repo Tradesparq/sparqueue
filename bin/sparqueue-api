@@ -63,7 +63,7 @@ def queues_job_cancel(system, queue, jobid):
 @get('/<system>/queues/<queue>/jobs/<jobid>/status')
 def queues_state(system, queue, jobid):
     assert SYSTEM_NAME == system and QUEUE_NAME == queue
-    response.headers['Content-Type'] = 'text/plain'
+    response.headers['Content-Type'] = 'text/json'
     return QUEUE.status(jobid)
 
 def execute(config_filename):
