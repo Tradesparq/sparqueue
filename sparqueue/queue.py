@@ -43,6 +43,8 @@ class RedisQueue():
         self.pending_list = self.prefix('queues', queue_name, 'pending')
         self.success_set = self.prefix('queues', queue_name, 'success')
         self.step_hash = self.prefix('queues', queue_name, 'step')
+        self.incoming_list = self.prefix('queues', queue_name, 'incoming')
+        self.submitted_hash = self.prefix('queues', queue_name, 'submitted')
 
         self.hostname = socket.gethostname()
         self.pid = os.getpid()
@@ -70,6 +72,20 @@ class RedisQueue():
         results = m.execute()
         return self._worker_info(float(results[0]), workerid)
 
+    def incoming(self, timeout=1):
+        jobid = None
+        result = self.r.brpop(self.incoming_list, timeout)
+
+        if result:
+            (key, job_json) = result
+            print job_json
+            job = json.loads(job_json)
+            submitter_jobid = job['metadata']['jobid']
+            jobid = self.push(job)
+            self.r.hset(self.submitted_hash, submitter_jobid, jobid)
+
+        return jobid
+
     def push(self, config):
         assert 'vars' in config
         assert 'class' in config
@@ -82,6 +98,7 @@ class RedisQueue():
             config['metadata'] = {}
         config['metadata']['jobid'] = jobid
         config['metadata']['queue'] = self.queue_name
+        config['metadata']['system'] = self.system_name
 
         m = self.r.pipeline()
         m.hset(self.jobs_hash, jobid, json.dumps(config))
