@@ -47,8 +47,12 @@ def worker_delete(args):
 def job_cancel(args):
     jobs = []
     for jobid in args.jobid:
-        jobs.append(format_json(SPARQUEUE_CLIENT.cancel(jobid)))
-    return jobs
+        retvalue = SPARQUEUE_CLIENT.cancel(jobid)
+        if retvalue:
+            jobs.append(format_json(retvalue))
+    if jobs:
+        return '\n'.join(jobs)
+    return 'None'
 
 def format_json(s):
     try:
