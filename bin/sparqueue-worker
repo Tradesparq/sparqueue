@@ -6,8 +6,7 @@ import signal
 import sparqueue.worker
 
 def signal_handler(signal, frame):
-    global RUN
-    RUN = False
+    sparqueue.worker.stop()
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
