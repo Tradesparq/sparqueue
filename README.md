@@ -44,51 +44,20 @@ Installing to self:
 pip install .
 ```
 
-## Philosophy
-
-Because of limited resources, we limit requirements and assume that:
-
-* jobs are well-behaved
- * they will not crash the worker
- * does not leak memory
- * clean up after themselves
-* users can be trusted
- * will not try to do nefarious things to the system
- * separate mechanism for authentication
-
-This means:
-
-* no ACL (except at the ssh login level)
-* no job process isolation (except at the worker level)
-* no forking of jobs (jobs are in the same memory space)
-* single centralized job datastore (with single replica)
-
-We also won't hesitate to use cutting edge features of the Linux kernel and
-operating system (systemd).
-
-
-## Things to think about
-
-* memory use
-* datastore use
-* exception handling and error reporting
-* job progress report and worker logging
-
-More:
-
-* As requirements grow, configuration tend to turn into their own horrible
-scripting languages... We don't want that.
-* Code deployment is a major challenge: both versioning and getting the dependencies.
-* Important to have accessible visibility in all aspects of workers and jobs; statistics, progress, resource usage, logs, etc.
-* We need automated testing before going to production to ensure that we can safely refactor the code without introducing breaking changes.
-* As jobs multiplies, its related data multiplies. We need log "rotation" in Redis
-
 ## Features
 
 ### http JSON API
 
 Allows other languages (such as PHP) submit jobs without having to access the
 underlying datastore by simply constructing a valid JSON request.
+
+### command-line interface
+
+Text console UI with command-line parsing. This facilitates access control (ssh) and let us more quickly develop the library to query the underlying datastore.
+
+### installation
+
+Using PIP, jobs can be installed from packages (possibly git repository).
 
 ## Guide
 
@@ -164,13 +133,51 @@ hash
 redis-cli type sparqueue|queues|main|cancelled
 set
 ```
+## Philosophy
+
+Because of limited resources, we limit requirements and assume that:
+
+* jobs are well-behaved
+ * they will not crash the worker
+ * does not leak memory
+ * clean up after themselves
+* users can be trusted
+ * will not try to do nefarious things to the system
+ * separate mechanism for authentication
+
+This means:
+
+* no ACL (except at the ssh login level)
+* no job process isolation (except at the worker level)
+* no forking of jobs (jobs are in the same memory space)
+* single centralized job datastore (with single replica)
+
+We also won't hesitate to use cutting edge features of the Linux kernel and
+operating system (systemd).
+
+
+## Things to think about
+
+* memory use
+* datastore use
+* exception handling and error reporting
+* job progress report and worker logging
+
+More:
+
+* As requirements grow, configuration tend to turn into their own horrible
+scripting languages... We don't want that.
+* Code deployment is a major challenge: both versioning and getting the dependencies.
+* Important to have accessible visibility in all aspects of workers and jobs; statistics, progress, resource usage, logs, etc.
+* We need automated testing before going to production to ensure that we can safely refactor the code without introducing breaking changes.
+* As jobs multiplies, its related data multiplies. We need log "rotation" in Redis
+
+
 ## Roadmap
 
-### Management UI
+### Web Management UI
 
-We could start with a text console UI? or command-line parsing? This
-facilitates access control (ssh) and let us more quickly develop the library to
-query the underlying datastore.
+A web interface would let us get a quick overview of the whole system(s). Need to add pubsub events as job change state.
 
 ### Workflow
 
