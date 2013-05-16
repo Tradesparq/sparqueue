@@ -67,6 +67,12 @@ def queues_state(system, queue, jobid):
     response.headers['Content-Type'] = 'text/json'
     return queue_instance.status(jobid)
 
+@get('/<system>/queues/<queue>/incoming')
+def process_incoming(system, queue):
+    queue_instance = MANAGER.get(system, queue)
+    response.headers['Content-Type'] = 'text/plain'
+    return queue_instance.incoming()
+
 def loop(config_filename):
     while True:
         config = sparqueue.config.get_config(config_filename)
