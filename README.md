@@ -44,13 +44,6 @@ Installing to self:
 pip install .
 ```
 
-Using current package (useful when having edit-run-debug cycles):
-
-
-```
-export PYTHONPATH=.
-```
-
 ## Philosophy
 
 Because of limited resources, we limit requirements and assume that:

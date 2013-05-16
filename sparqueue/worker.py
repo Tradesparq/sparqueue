@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import os
 import redis
 import sh
@@ -38,25 +40,17 @@ def execute(config_filename):
 def loop(config, jobloader):
     # unique name for restart
     redisclient = sparqueue.redis.client(config)
+    queue_manager = sparqueue.queue.QueueManager(config, redisclient)
+    queue_manager.add_list(config['queues'])
 
-    queue = sparqueue.queue.RedisQueue(
-        redisclient,
-        # TODO: support multiple queues
-        config['queues'][0]['system'],
-        config['queues'][0]['queue'],
-        config)
-
-    requeued = queue.requeue()
     while RUN:
-        logger.info('brpop queue %s [%s]' % (queue.queue_name, queue.client_id))
-
         while RUN:
             try:
-                job = queue.next()
+                (queue, job) = queue_manager.pop()
                 break
             except sparqueue.queue.QueueException,e:
                 # TODO: want probably to spawn this in another cron process instead
-                requeued = queue.requeue()
+                requeued = queue_manager.requeue()
                 if len(requeued) > 1:
                     print 'Requeued %s' % ','.join(requeued)
 

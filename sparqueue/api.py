@@ -84,11 +84,7 @@ def execute(config):
     redisclient = sparqueue.redis.client(config)
 
     MANAGER = sparqueue.queue.QueueManager(config, redisclient)
+    MANAGER.add_list(config['queues'])
 
-    for queue in config['queues']:
-        system_name = queue['system']
-        queue_name = queue['queue']
-        MANAGER.add(system_name, queue_name)
-        logger.info('System: %s Queue %s' % (system_name, queue_name))
 
     run(host=config['host'], port=config['port'], debug=config['debug'])

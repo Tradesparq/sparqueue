@@ -17,18 +17,22 @@ def unix_to_iso8601(unix):
 class QueueException(Exception):
     pass
 
-class QueueDoesNotExistException(Exception):
+class QueueDoesNotExistException(QueueException):
+    pass
+
+class QueueJobCancelledException(QueueException):
+    pass
+
+class QueueTimeoutException(QueueException):
     pass
 
 class RedisQueue():
     def __init__(self, r, system, queue_name, config=None, separator='|'):
         self.r = r
-        self.system = system
+        self.system_name = system
         self.separator = separator
         self.queue_name = queue_name
         self.config = config
-
-        print 'Redis version %s' % self.r.info()['redis_version']
 
         self.activity_hash = self.prefix('queues', queue_name, 'workers')
         self.cancelled_hash = self.prefix('queues', queue_name, 'cancelled')
@@ -87,17 +91,27 @@ class RedisQueue():
 
         return jobid
 
-    def next(self, timeout=5):
+    def active_worker(self):
         # we update the activity timestamp for the current worker
         self.r.hset(self.activity_hash, self.client_id, time.time())
+
+    def active_job(self, jobid):
+        self.r.hset(self.ongoing_hash, jobid, time.time())
+
+    def pop(self, timeout=3):
+        self.active_worker()
 
         # block pop with catchable exception
         retvalue = self.r.brpop(self.pending_list, timeout)
         if not retvalue:
-            raise QueueException('brpop returned null for %s due to timeout - please retry' % self.pending_list)
+            raise QueueTimeoutException('brpop returned null for %s due to timeout - please retry' % self.pending_list)
         (key, jobid) = retvalue
+
+        self.activate_job(self, jobid)
+
+    def activate_job(self, jobid):
         if self.r.sismember(self.cancelled_hash, jobid):
-            raise QueueException('jobid is cancelled %s - please retry' % jobid)
+            raise QueueJobCancelledException('jobid is cancelled %s - please retry' % jobid)
 
         # use the jobid and set all related information
         m = self.r.pipeline()
@@ -160,7 +174,7 @@ class RedisQueue():
     def job(self, jobid):
         return json.loads(self.r.hget(self.jobs_hash, jobid))
 
-    def requeue(self, timeout=60):
+    def requeue(self, timeout=10):
         # since ongoing_hash may change while we're checking
         # we want to use optimistic locking and retry
         # if that key change
@@ -264,6 +278,8 @@ class RedisQueue():
         return json.loads(results[1])
 
     def step(self, jobid, stepname):
+        self.active_worker()
+        self.active_job(jobid)
         return self.r.hset(self.step_hash, jobid, stepname)
 
     def _finalize(self, jobid, key, current):
@@ -311,18 +327,45 @@ class RedisQueue():
         return self.separator.join(*arg)
 
     def prefix(self, *arg):
-        return self.join_key([self.system, self.separator.join(list(arg))])
+        return self.join_key([self.system_name, self.separator.join(list(arg))])
 
 
 class QueueManager():
     def __init__(self,  config, redisclient):
         self.queues = {}
         self.config = config
-        self.redisclient = redisclient
+        self.r = redisclient
+        self.pending_list = []
+        self.pending_key_to_queue = {}
+
+    def pop(self, timeout=3):
+        # block pop with catchable exception
+        if not self.pending_list:
+            raise QueueDoesNotExistException('Not queues configured')
+
+        retvalue = self.r.brpop(self.pending_list, timeout=timeout)
+        if not retvalue:
+            raise QueueTimeoutException('brpop returned null for %s due to timeout - please retry' % self.pending_list)
+        (key, jobid) = retvalue
+        queue = self.pending_key_to_queue[key]
+
+        return (queue, queue.activate_job(jobid))
+
+    def requeue(self):
+        requeued = []
+        for (key, queue) in self.pending_key_to_queue.iteritems():
+            requeued.extend(queue.requeue())
+        return requeued
+
+    def add_list(self, queues):
+        for queue in queues:
+            system_name = queue['system']
+            queue_name = queue['queue']
+            queue = self.add(system_name, queue_name)
 
     def add(self, system_name, queue_name):
         queue = RedisQueue(
-            self.redisclient,
+            self.r,
             system_name,
             queue_name,
             self.config)
@@ -330,6 +373,10 @@ class QueueManager():
             self.queues[system_name] = {}
 
         self.queues[system_name][queue_name] = queue
+        self.pending_list.append(queue.pending_list)
+        self.pending_key_to_queue[queue.pending_list] = queue
+
+        return queue
 
     def get(self, system_name, queue_name):
         if system_name not in self.queues or queue_name not in self.queues[system_name]:
