@@ -60,27 +60,28 @@ def loop(config, jobloader):
 
         logger.info(job)
 
+        jobid = job['metadata']['jobid']
         reporter =  sparqueue.reporter.Reporter(
             logger,
             queue,
-            job['metadata']['jobid'])
+            jobid)
+
+        logger.info('Processing jobid %s' % jobid)
 
         if 'install' in job:
             if 'pip' in job['install']:
                 reporter.step('installing %s' % job['install']['pip'])
                 try:
-                    logger.info(sh.pip('install', job['install']['pip']))
+                    logger.info(sh.pip('install', '--upgrade', job['install']['pip']))
                 except sh.ErrorReturnCode,e:
                     logger.error('problem installing %s: %s' % (
                         job['metadata']['jobid'], traceback.format_exc(e)))
                     queue.failed(e)
                     continue
-
-        jobInstance = jobloader.getInstance(job['class'], config)
-        if not jobInstance:
-            logger.error('Invalid class name: %s' % job['class'])
-
         try:
+            jobInstance = jobloader.getInstance(job['class'], config)
+            if not jobInstance:
+                logger.error('Invalid class name: %s' % job['class'])
             job['vars']['reporter'] = reporter
             output = jobInstance.perform(**job['vars'])
             reporter.finish()
