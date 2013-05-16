@@ -1,100 +1,12 @@
 #!/usr/bin/env python
-from bottle import route, run, request, post, get, response, delete
 
-import json
 import sys
-import redis
-import time
 
-import sparqueue.queue
-import sparqueue.redis
-import sparqueue.config
-import sparqueue.logging
-
-logger = sparqueue.logging.getLogger(__file__)
-
-@post('/<system>/queues/<queue>/jobs')
-def queues_submit(system, queue):
-    assert SYSTEM_NAME == system and QUEUE_NAME == queue
-    response.headers['Content-Type'] = 'text/plain'
-    try:
-        data = request.forms.get('job')
-        job = json.loads(data)
-    except TypeError,e:
-        logger.error('Error loading: %s' % data)
-        raise
-    except ValueError,e:
-        logger.error('Error loading: %s' % data)
-        raise
-    return QUEUE.push(job)
-
-@get('/<system>/queues/<queue>/jobs')
-def queues_list(system, queue):
-    assert SYSTEM_NAME == system and QUEUE_NAME == queue
-    response.headers['Content-Type'] = 'text/json'
-    l = QUEUE.list()
-    return json.dumps(l)
-
-@get('/<system>/queues/<queue>/workers')
-def workers_list(system, queue):
-    assert SYSTEM_NAME == system and QUEUE_NAME == queue
-    response.headers['Content-Type'] = 'text/json'
-    l = QUEUE.workers()
-    return json.dumps(l)
-
-@delete('/<system>/queues/<queue>/workers/<workerid>')
-def workers_delete(system, queue, workerid):
-    assert SYSTEM_NAME == system and QUEUE_NAME == queue
-    response.headers['Content-Type'] = 'text/json'
-    return QUEUE.worker_delete(workerid)
-
-@get('/<system>/queues/<queue>/jobs/<jobid>')
-def queues_job(system, queue, jobid):
-    assert SYSTEM_NAME == system and QUEUE_NAME == queue
-    response.headers['Content-Type'] = 'text/json'
-    return QUEUE.job(jobid)
-
-@delete('/<system>/queues/<queue>/jobs/<jobid>')
-def queues_job_cancel(system, queue, jobid):
-    assert SYSTEM_NAME == system and QUEUE_NAME == queue
-    response.headers['Content-Type'] = 'text/json'
-    return QUEUE.cancel(jobid)
-
-@get('/<system>/queues/<queue>/jobs/<jobid>/status')
-def queues_state(system, queue, jobid):
-    assert SYSTEM_NAME == system and QUEUE_NAME == queue
-    response.headers['Content-Type'] = 'text/json'
-    return QUEUE.status(jobid)
-
-def execute(config_filename):
-    while True:
-        config = sparqueue.config.get_config(config_filename)
-        try:
-            loop(config)
-        except redis.exceptions.ConnectionError,e:
-            logger.error('Error connecting: ' + str(e))
-            time.sleep(5)
-            continue
-        break
-
-def loop(config):
-    redisclient = sparqueue.redis.client(config)
-
-    global QUEUE, SYSTEM_NAME, QUEUE_NAME
-    QUEUE_NAME = config['queues'][0]['queue']
-    SYSTEM_NAME =config['queues'][0]['system']
-    QUEUE = sparqueue.queue.RedisQueue(
-        redisclient,
-        SYSTEM_NAME,
-        QUEUE_NAME,
-        config)
-
-    logger.info('System: %s Queue %s' % (SYSTEM_NAME, QUEUE))
-    run(host='localhost', port=8080, debug=True)
+import sparqueue.api
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
-        logger.info('Usage: %s config.json' % sys.argv[0])
+        print 'Usage: %s config.json' % sys.argv[0]
         exit(1)
 
-    execute(sys.argv[1])
+    sparqueue.api.loop(sys.argv[1])

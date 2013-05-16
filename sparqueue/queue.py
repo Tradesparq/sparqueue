@@ -17,6 +17,8 @@ def unix_to_iso8601(unix):
 class QueueException(Exception):
     pass
 
+class QueueDoesNotExistException(Exception):
+    pass
 
 class RedisQueue():
     def __init__(self, r, system, queue_name, config=None, separator='|'):
@@ -312,3 +314,25 @@ class RedisQueue():
         return self.join_key([self.system, self.separator.join(list(arg))])
 
 
+class QueueManager():
+    def __init__(self,  config, redisclient):
+        self.queues = {}
+        self.config = config
+        self.redisclient = redisclient
+
+    def add(self, system_name, queue_name):
+        queue = RedisQueue(
+            self.redisclient,
+            system_name,
+            queue_name,
+            self.config)
+        if system_name not in self.queues:
+            self.queues[system_name] = {}
+
+        self.queues[system_name][queue_name] = queue
+
+    def get(self, system_name, queue_name):
+        if system_name not in self.queues or queue_name not in self.queues[system_name]:
+            raise QueueDoesNotExistException(
+                'Invalid queue: %s/%s' % (system_name, queue_name))
+        return self.queues[system_name][queue_name]

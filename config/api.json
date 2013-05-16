@@ -1,4 +1,7 @@
 {
+    "host": "localhost",
+    "port": 8080,
+    "debug": 1,
     "queues": [
         {
             "system": "sparqueue",
