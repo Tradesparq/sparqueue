@@ -12,6 +12,14 @@ philosophy:
 * high-level, mature scripting language: Python
 * built to support workers/jobs in other languages
 
+## Executables
+
+Has two sparqueue executables (in bin/):
+
+* sparqueue-api: exposes generic HTTP API to sparqueue
+* sparqueue-worker: pops jobs from queue and executes them
+
+
 ## Installation
 
 requisites (system-wide):
@@ -55,9 +63,16 @@ underlying datastore by simply constructing a valid JSON request.
 
 Text console UI with command-line parsing. This facilitates access control (ssh) and let us more quickly develop the library to query the underlying datastore.
 
-### installation
+### automated installation
 
 Using PIP, jobs can be installed from packages (possibly git repository).
+
+You probably want your workers to use the cache, edit ```~/.pip/pip.conf```:
+
+```
+[global]
+download_cache = ~/.pip/cache
+```
 
 ## Guide
 
@@ -155,7 +170,6 @@ This means:
 We also won't hesitate to use cutting edge features of the Linux kernel and
 operating system (systemd).
 
-
 ## Things to think about
 
 * memory use
@@ -184,3 +198,15 @@ A web interface would let us get a quick overview of the whole system(s). Need t
 We are planning to build a workflow on top of the job processing queue. This
 will handle inter-job dependencies and work across queues to take advantage of
 data locality.
+
+## incoming jobs from Redis
+
+In some cases, it's preferable to have the client submit his config
+using an Redis directly instead of using the API.
+
+We add a background thread progress to the API to actually submit these incoming jobs.
+
+* client add job to list with a uuid
+* incoming brpop(list)
+* incoming submits to queue defined in metadata.queue and metadata.system
+* incoming sets hset uuid -> jobid
