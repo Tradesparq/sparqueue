@@ -16,7 +16,8 @@ def submit(args):
     return SPARQUEUE_CLIENT.submit(obj)
 
 def list_jobs(args):
-    return format_json(SPARQUEUE_CLIENT.list())
+    l = SPARQUEUE_CLIENT.list()
+    return format_json(l)
 
 def workers(args):
     return format_json(SPARQUEUE_CLIENT.workers())
@@ -56,7 +57,7 @@ def job_cancel(args):
 
 def format_json(s):
     try:
-        if s is str:
+        if isinstance(s, str):
             obj = json.loads(s)
         else:
             obj = s
