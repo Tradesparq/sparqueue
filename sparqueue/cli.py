@@ -56,13 +56,16 @@ def job_cancel(args):
 
 def format_json(s):
     try:
-        obj = json.loads(s)
+        if s is str:
+            obj = json.loads(s)
+        else:
+            obj = s
         return json.dumps(obj, sort_keys=True, indent=4)
     except ValueError:
-        print s
+        print 'Error converting to/from JSON: %s' % s
         return
     except TypeError:
-        print s
+        print 'Error converting to/from JSON: %s' % s
         return
 
 def setup_parser(parser, subparsers, config, system, queue):
