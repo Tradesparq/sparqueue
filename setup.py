@@ -18,6 +18,7 @@ setup(
     install_requires=[
         'bottle',
         'redis',
+        'sh'
     ],
     license='MIT',
     long_description=open('README.md').read(),
