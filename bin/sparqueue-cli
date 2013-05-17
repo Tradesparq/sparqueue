@@ -9,7 +9,8 @@ import sparqueue.cli
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
-    config_filename = os.path.join(sys.prefix, 'config', 'sparqueue-cli.json')
+    config_filename = os.path.join(
+        sys.prefix, 'config', 'sparqueue-cli.json')
     sparqueue.cli.setup_parser(
         parser,
         subparsers,
