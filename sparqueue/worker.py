@@ -72,7 +72,7 @@ def loop(config, jobloader):
             if 'pip' in job['install']:
                 reporter.step('installing %s' % job['install']['pip'])
                 try:
-                    logger.info(sh.pip('install', '--upgrade', job['install']['pip']))
+                    logger.info(sh.pip('install', job['install']['pip']))
                 except sh.ErrorReturnCode,e:
                     logger.error('problem installing %s: %s' % (
                         job['metadata']['jobid'], traceback.format_exc(e)))
