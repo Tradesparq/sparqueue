@@ -160,11 +160,11 @@ class RedisQueue():
         if states[IS_EXIST]:
             if states[IS_FAILED]:
                 state = 'FAILED'
-            if states[IS_SUCCESS]:
+            elif states[IS_SUCCESS]:
                 state = 'SUCCESS'
-            if states[IS_CANCELLED]:
+            elif states[IS_CANCELLED]:
                 state = 'CANCELLED'
-            if states[IS_ONGOING]:
+            elif states[IS_ONGOING]:
                 state = 'ACTIVE'
 
         return {
@@ -338,12 +338,13 @@ class QueueManager():
         self.r = redisclient
         self.pending_list = []
         self.pending_key_to_queue = {}
+        self.last_queue = None # mostly for operations on workers
 
     def pop(self, timeout=3):
         # block pop with catchable exception
         if not self.pending_list:
             raise QueueDoesNotExistException('Not queues configured')
-
+        self.last_queue.active_worker()
         retvalue = self.r.brpop(self.pending_list, timeout=timeout)
         if not retvalue:
             raise QueueTimeoutException('brpop returned null for %s due to timeout - please retry' % self.pending_list)
@@ -376,7 +377,7 @@ class QueueManager():
         self.queues[system_name][queue_name] = queue
         self.pending_list.append(queue.pending_list)
         self.pending_key_to_queue[queue.pending_list] = queue
-
+        self.last_queue = queue
         return queue
 
     def get(self, system_name, queue_name):
