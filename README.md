@@ -22,6 +22,13 @@ Has two sparqueue executables (in bin/):
 
 ## Installation
 
+You probably want to use a cache, edit ```~/.pip/pip.conf```:
+
+```
+[global]
+download_cache = ~/.pip/cache
+```
+
 requisites (system-wide):
 
 ```
@@ -66,13 +73,6 @@ Text console UI with command-line parsing. This facilitates access control (ssh)
 ### automated installation
 
 Using PIP, jobs can be installed from packages (possibly git repository).
-
-You probably want your workers to use the cache, edit ```~/.pip/pip.conf```:
-
-```
-[global]
-download_cache = ~/.pip/cache
-```
 
 ## Guide
 

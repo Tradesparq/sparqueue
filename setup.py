@@ -5,8 +5,8 @@ setup(
     version='0.1',
     packages=['sparqueue',],
     scripts=[
-		'bin/sparqueue-api', 
-		'bin/sparqueue-cli', 
+		'bin/sparqueue-api',
+		'bin/sparqueue-cli',
 		'bin/sparqueue-worker'
 	],
     data_files=[('config', [
@@ -14,6 +14,10 @@ setup(
             'config/api.json',
             'config/sparqueue-cli.json'
         ])
+    ],
+    install_requires=[
+        'bottle',
+        'redis',
     ],
     license='MIT',
     long_description=open('README.md').read(),
