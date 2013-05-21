@@ -92,4 +92,4 @@ def loop(config, jobloader):
             queue.failed(e)
 
     logger.info('Exiting gracefully, no current queue jobs left unprocessed')
-    queue.exit()
+    logger.info('Exited: %s' % queue_manager.exit())

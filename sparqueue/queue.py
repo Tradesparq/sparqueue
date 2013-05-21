@@ -400,3 +400,10 @@ class QueueManager():
             raise QueueDoesNotExistException(
                 'Invalid queue: %s/%s' % (system_name, queue_name))
         return self.queues[system_name][queue_name]
+
+    def exit(self):
+        queue_names = []
+        for (key, queue) in self.pending_key_to_queue.iteritems():
+            queue.exit()
+            queue_names.append(queue.queue_name)
+        return queue_names
