@@ -18,22 +18,3 @@ class TestQueue:
     def setup_class(cls):
         print ("setup_class() before any methods in this class")
         TestQueue.redis_client = redis.Redis()
-
-    def test_incoming_empty(self):
-        assert self.queue.incoming() == None
-
-    def test_incoming_one_job(self):
-        config = {
-            "class": "dummy.class",
-            "vars": {},
-            "metadata": {
-                "jobid": "submitterid"
-            }
-        }
-        config_json = json.dumps(config)
-        assert TestQueue.redis_client.lpush(self.queue.incoming_list, config_json)
-        incoming_jobid = self.queue.incoming()
-        submitted_jobid = TestQueue.redis_client.hget(self.queue.submitted_hash, "submitterid")
-        assert incoming_jobid == submitted_jobid, 'expected %s == %s' % (incoming_jobid, submitted_jobid)
-
-
