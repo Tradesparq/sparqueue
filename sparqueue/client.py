@@ -2,8 +2,10 @@ import urllib
 import json
 import httplib
 
+
 class ClientException(Exception):
     pass
+
 
 class Client():
     def __init__(self, protocol, hostname, port, system, queue):

@@ -2,6 +2,7 @@ import time
 
 import resource
 
+
 class Reporter():
     def __init__(self, logger, queue, jobid):
         self.jobid = jobid
@@ -22,7 +23,7 @@ class Reporter():
             #'resources': list(resource.getrusage(resource.RUSAGE_SELF))
         })
 
-    def step(self, step, count = 1):
+    def step(self, step, count=1):
         if hasattr(self, 'total') and self.total > 1:
             self.increment()
 

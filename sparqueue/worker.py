@@ -19,11 +19,13 @@ RUN = True
 
 logger = sparqueue.logging.getLogger(__file__)
 
+
 def stop():
     global RUN
     logger.info('EXIT REQUESTED, FINISHING LOOP')
 
     RUN = False
+
 
 def execute(config_filename):
     config = sparqueue.config.get_config(config_filename)
@@ -32,7 +34,7 @@ def execute(config_filename):
     while RUN:
         try:
             loop(config, jobloader)
-        except redis.exceptions.ConnectionError,e:
+        except redis.exceptions.ConnectionError, e:
             logger.error('Error connecting: ' + str(e))
             time.sleep(5)
 
@@ -48,8 +50,9 @@ def loop(config, jobloader):
             try:
                 (queue, job) = queue_manager.pop()
                 break
-            except sparqueue.queue.QueueException,e:
-                # TODO: want probably to spawn this in another cron process instead
+            except sparqueue.queue.QueueException, e:
+                # TODO: want probably to spawn this in
+                # another cron process instead
                 requeued = queue_manager.requeue()
                 if len(requeued) > 1:
                     print 'Requeued %s' % ','.join(requeued)
@@ -61,10 +64,7 @@ def loop(config, jobloader):
         logger.info(job)
 
         jobid = job['metadata']['jobid']
-        reporter =  sparqueue.reporter.Reporter(
-            logger,
-            queue,
-            jobid)
+        reporter = sparqueue.reporter.Reporter(logger, queue, jobid)
 
         logger.info('Processing jobid %s' % jobid)
 
@@ -73,7 +73,7 @@ def loop(config, jobloader):
                 reporter.step('installing %s' % job['install']['pip'])
                 try:
                     logger.info(sh.pip('install', job['install']['pip']))
-                except sh.ErrorReturnCode,e:
+                except sh.ErrorReturnCode, e:
                     logger.error('problem installing %s: %s' % (
                         job['metadata']['jobid'], traceback.format_exc(e)))
                     queue.failed(e)
@@ -86,11 +86,10 @@ def loop(config, jobloader):
             output = jobInstance.perform(**job['vars'])
             reporter.finish()
             queue.success(output, reporter.stats())
-        except Exception,e:
+        except Exception, e:
             logger.error('problem processing %s: %s' % (
                 job['metadata']['jobid'], traceback.format_exc(e)))
             queue.failed(e)
 
     logger.info('Exiting gracefully, no current queue jobs left unprocessed')
     queue.exit()
-

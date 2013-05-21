@@ -11,20 +11,26 @@ import traceback
 # we still want to have this counter correct for the process
 PROCESS_JOB_COUNTER = 0
 
+
 def unix_to_iso8601(unix):
     return datetime.datetime.fromtimestamp(unix).isoformat()
+
 
 class QueueException(Exception):
     pass
 
+
 class QueueDoesNotExistException(QueueException):
     pass
+
 
 class QueueJobCancelledException(QueueException):
     pass
 
+
 class QueueTimeoutException(QueueException):
     pass
+
 
 class RedisQueue():
     def __init__(self, r, system, queue_name, config=None, separator='|'):
@@ -105,14 +111,17 @@ class RedisQueue():
         # block pop with catchable exception
         retvalue = self.r.brpop(self.pending_list, timeout)
         if not retvalue:
-            raise QueueTimeoutException('brpop returned null for %s due to timeout - please retry' % self.pending_list)
+            raise QueueTimeoutException(
+                'brpop returned null for %s due to timeout - please retry' % (
+                    self.pending_list))
         (key, jobid) = retvalue
 
         self.activate_job(self, jobid)
 
     def activate_job(self, jobid):
         if self.r.sismember(self.cancelled_hash, jobid):
-            raise QueueJobCancelledException('jobid is cancelled %s - please retry' % jobid)
+            raise QueueJobCancelledException(
+                'jobid is cancelled %s - please retry' % jobid)
 
         # use the jobid and set all related information
         m = self.r.pipeline()
@@ -143,15 +152,15 @@ class RedisQueue():
     def status(self, jobid):
         m = self.r.pipeline()
         IS_ONGOING = 0
-        m.hexists(self.ongoing_hash, jobid) #0
+        m.hexists(self.ongoing_hash, jobid)  # 0
         IS_EXIST = 1
-        m.hexists(self.jobs_hash, jobid) #1
+        m.hexists(self.jobs_hash, jobid)  # 1
         IS_FAILED = 2
-        m.sismember(self.failed_set, jobid) #2
+        m.sismember(self.failed_set, jobid)  # 2
         IS_SUCCESS = 3
-        m.sismember(self.success_set, jobid) #3
+        m.sismember(self.success_set, jobid)  # 3
         IS_CANCELLED = 4
-        m.sismember(self.cancelled_hash, jobid) #4
+        m.sismember(self.cancelled_hash, jobid)  # 4
         STEP = 5
         m.hget(self.step_hash, jobid)
         states = m.execute()
@@ -190,7 +199,9 @@ class RedisQueue():
                     pipe.multi()
                     for jobid in jobids:
                         # if the jobid has timed out
-                        if time.time() - float(self.r.hget(self.ongoing_hash, jobid)) > timeout:
+                        last_update = float(self.r.hget(
+                            self.ongoing_hash, jobid))
+                        if time.time() - last_update > timeout:
                             # and the jobid is not in the list of pending keys
                             try:
                                 pending.index(jobid)
@@ -198,7 +209,8 @@ class RedisQueue():
                                 # push back to pending
                                 requeued.append(jobid)
                                 pipe.lpush(self.pending_list, jobid)
-                                pipe.hset(self.ongoing_hash, jobid, time.time())
+                                pipe.hset(
+                                    self.ongoing_hash, jobid, time.time())
                     pipe.execute()
                     break
                 except redis.WatchError:
@@ -328,7 +340,8 @@ class RedisQueue():
         return self.separator.join(*arg)
 
     def prefix(self, *arg):
-        return self.join_key([self.system_name, self.separator.join(list(arg))])
+        return self.join_key([
+            self.system_name, self.separator.join(list(arg))])
 
 
 class QueueManager():
@@ -338,7 +351,7 @@ class QueueManager():
         self.r = redisclient
         self.pending_list = []
         self.pending_key_to_queue = {}
-        self.last_queue = None # mostly for operations on workers
+        self.last_queue = None  # mostly for operations on workers
 
     def pop(self, timeout=3):
         # block pop with catchable exception
@@ -347,7 +360,9 @@ class QueueManager():
         self.last_queue.active_worker()
         retvalue = self.r.brpop(self.pending_list, timeout=timeout)
         if not retvalue:
-            raise QueueTimeoutException('brpop returned null for %s due to timeout - please retry' % self.pending_list)
+            raise QueueTimeoutException(
+                'brpop returned null for %s due to timeout - please retry' % (
+                    self.pending_list))
         (key, jobid) = retvalue
         queue = self.pending_key_to_queue[key]
 

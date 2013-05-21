@@ -14,6 +14,7 @@ import sparqueue.logging
 
 logger = sparqueue.logging.getLogger(__file__)
 
+
 @post('/<system>/queues/<queue>/jobs')
 def queues_submit(system, queue):
     queue_instance = MANAGER.get(system, queue)
@@ -21,13 +22,14 @@ def queues_submit(system, queue):
     try:
         data = request.forms.get('job')
         job = json.loads(data)
-    except TypeError,e:
+    except TypeError, e:
         logger.error('Error loading: %s' % data)
         raise
-    except ValueError,e:
+    except ValueError, e:
         logger.error('Error loading: %s' % data)
         raise
     return queue_instance.push(job)
+
 
 @get('/<system>/queues/<queue>/jobs')
 def queues_list(system, queue):
@@ -36,6 +38,7 @@ def queues_list(system, queue):
     l = queue_instance.list()
     return json.dumps(l)
 
+
 @get('/<system>/queues/<queue>/workers')
 def workers_list(system, queue):
     queue_instance = MANAGER.get(system, queue)
@@ -43,11 +46,13 @@ def workers_list(system, queue):
     l = queue_instance.workers()
     return json.dumps(l)
 
+
 @delete('/<system>/queues/<queue>/workers/<workerid>')
 def workers_delete(system, queue, workerid):
     queue_instance = MANAGER.get(system, queue)
     response.headers['Content-Type'] = 'text/json'
     return queue_instance.worker_delete(workerid)
+
 
 @get('/<system>/queues/<queue>/jobs/<jobid>')
 def queues_job(system, queue, jobid):
@@ -55,11 +60,13 @@ def queues_job(system, queue, jobid):
     response.headers['Content-Type'] = 'text/json'
     return queue_instance.job(jobid)
 
+
 @delete('/<system>/queues/<queue>/jobs/<jobid>')
 def queues_job_cancel(system, queue, jobid):
     queue_instance = MANAGER.get(system, queue)
     response.headers['Content-Type'] = 'text/json'
     return queue_instance.cancel(jobid)
+
 
 @get('/<system>/queues/<queue>/jobs/<jobid>/status')
 def queues_state(system, queue, jobid):
@@ -67,16 +74,18 @@ def queues_state(system, queue, jobid):
     response.headers['Content-Type'] = 'text/json'
     return queue_instance.status(jobid)
 
+
 def loop(config_filename):
     while True:
         config = sparqueue.config.get_config(config_filename)
         try:
             execute(config)
-        except redis.exceptions.ConnectionError,e:
+        except redis.exceptions.ConnectionError, e:
             logger.error('Error connecting: ' + str(e))
             time.sleep(5)
             continue
         break
+
 
 def execute(config):
     global MANAGER
@@ -85,6 +94,5 @@ def execute(config):
 
     MANAGER = sparqueue.queue.QueueManager(config, redisclient)
     MANAGER.add_list(config['queues'])
-
 
     run(host=config['host'], port=config['port'], debug=config['debug'])

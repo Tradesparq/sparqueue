@@ -5,6 +5,7 @@ import logging
 
 SUBDIR = 'logs'
 
+
 def getLogger(filename):
     name = os.path.basename(filename).split('.')[0]
     logger = logging.getLogger(name)
@@ -24,7 +25,8 @@ def getLogger(filename):
     ch = logging.StreamHandler()
     ch.setLevel(logging.INFO)
 
-    formatter = logging.Formatter('%(asctime)s %(process)d %(name)s %(levelname)s %(message)s')
+    formatter = logging.Formatter(
+        '%(asctime)s %(process)d %(name)s %(levelname)s %(message)s')
     fh.setFormatter(formatter)
     ch.setFormatter(formatter)
 
