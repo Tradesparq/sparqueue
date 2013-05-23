@@ -223,18 +223,23 @@ class RedisQueue():
         failed = set()
         pending = set()
         every = set()
+        cancelled = set()
 
         m = self.r.pipeline()
         m.smembers(self.success_set),
         m.smembers(self.failed_set),
-        m.smembers(self.pending_list),
+        m.lrange(self.pending_list, 0, -1),
         m.hkeys(self.jobs_hash)
+        m.smembers(self.cancelled_hash)
         results = m.execute()
 
         success.update(results[0])
         failed.update(results[1])
         pending.update(results[2])
         every.update(results[3])
+        cancelled.update(results[4])
+
+        pending.difference_update(cancelled)
 
         if 'SUCCESS' in status:
             jobids.update(success)
@@ -283,7 +288,6 @@ class RedisQueue():
         m.hget(self.jobs_hash, jobid)
         m.hdel(self.jobs_hash, jobid)
         # we delete from whatever start or end states we can
-        m.hdel(self.pending_list, jobid)
         m.srem(self.success_set, jobid)
         m.hdel(self.failed_set, jobid)
         m.hdel(self.ongoing_hash, jobid)
